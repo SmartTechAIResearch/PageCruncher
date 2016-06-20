@@ -12,7 +12,7 @@ libraryDependencies += "org.apache.spark" %% "spark-mllib" % "1.3.0-cdh5.4.4" % 
 
 libraryDependencies += "org.apache.httpcomponents" % "httpcore" % "4.4.1"
 
-libraryDependencies += "de.l3s.boilerpipe" % "boilerpipe" % "1.2.0"
+libraryDependencies += "com.syncthemall" % "boilerpipe" % "1.2.1"
 
 libraryDependencies += "xerces" % "xercesImpl" % "2.11.0"
 
