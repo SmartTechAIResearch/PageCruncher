@@ -17,7 +17,8 @@ use the same version as Spark does. You can also change other dependencies in th
 If everything goes well a jar file will be available at /tmp/target/scala-2.11/ (depending on the specified Scala 
 version). This path can be changed in the **build.sbt** file ( `target := file("/tmp/target/")` ).
 
-If you don't want to 
+If you don't want to compile the application yourself, you can always download the latest release.
+https://github.com/sizingservers/PageCruncher/releases
 
 ## Usage
 
