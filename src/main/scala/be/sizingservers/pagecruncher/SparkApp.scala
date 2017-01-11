@@ -2,6 +2,7 @@ package be.sizingservers.pagecruncher
 
 import java.io.{BufferedInputStream, InputStreamReader}
 import java.net.URI
+import java.util.Calendar
 
 import de.l3s.boilerpipe.extractors.ArticleExtractor
 import edu.stanford.nlp.ling.CoreAnnotations
@@ -18,40 +19,81 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 /**
- * Created by wannes on 7/6/15.
- */
-case class Entity(label:String, etype:String)
+  * Created by wannes on 7/6/15.
+  */
+case class Entity(label: String, etype: String)
 
 object SparkApp {
 
-  var pathPrefix = "hdfs:///user/hdfs/CommonCrawl/"
-  var numCores = 2
+  val sleepTime = 3000
+  // Gives you some time to read important console output
+  // Set to 0 if you don't need this information.
+  val timestamp: Long = System.currentTimeMillis / 1000
 
-  def getPathPrefix():String = pathPrefix
+  var pathPrefix = "hdfs://spark-master:9000/"
+  // HDFS or local FS -> starting point where to find files
+  var numCores = 8
+  // Repartition factor: factor 8 will result in 8 tasks
+  var commoncrawlPath = "user/hdfs/CommonCrawl/"
+  // Relative path to CommonCrawl files (see pathPrefix)
+  var classifiersPath = "user/hdfs/Classifiers/"
+  // Relative path to the Classifiers (see pathPrefix)
+  var checkpointPath = "user/hdfs/Checkpoint/" // Relative path to the Checkpoint dir (see pathPrefix)
 
+  def getPathPrefix(): String = pathPrefix
+
+  def getClassifiersPath(): String = classifiersPath
+
+  // Main program
   def main(args: Array[String]): Unit = {
-    try {
-      if (args.length > 1) pathPrefix = args(0) + "/"
-      if (args.length == 2) numCores = Integer.parseInt(args(1))
+    try
+      // Processing arguments
+      if (args.length >= 1) pathPrefix = args(0) + "/"
+      if (args.length >= 2) numCores = Integer.parseInt(args(1))
+      if (args.length >= 3) commoncrawlPath = args(2)
+      if (args.length >= 4) classifiersPath = args(3)
+      if (args.length >= 5) checkpointPath = args(4)
 
-      printf("Path: %s, numCores %d\n", pathPrefix, numCores)
+      // Print processed arguments
+      printf("\u001B[32m\n---Path: %s, numCores %d---\n\n\u001B[0m", pathPrefix, numCores)
+      println("pathPrefix: " + pathPrefix)
+      println("numCores: " + numCores)
+      println("commoncrawlPath: " + commoncrawlPath)
+      println("classifiersPath: " + classifiersPath)
+      println("checkpointPath: " + checkpointPath)
+      Thread.sleep(sleepTime)
 
+
+      // Spark configuration
       val sparkConf = new SparkConf()
-        .setAppName("PageCruncher")
+      sparkConf.setAppName("PageCruncher Benchmark")
+
+      // Spark entry point = spark context
       val sc = new SparkContext(sparkConf)
+
+      // Location where to save (to local FS / HDFS)
+      sc.setCheckpointDir(pathPrefix + checkpointPath)
+
+      // Generic configuration
+      val conf = new Configuration()
+
+      // FS: wich one (will be determined based on the pathPrefix)
+      var fs: FileSystem = null
       if (pathPrefix.startsWith("hdfs")) {
-        sc.setCheckpointDir("hdfs:///user/hdfs/checkpoint")
+        // To avoid strange exceptions, the HDFS path has to be an URI
+        fs = FileSystem.get(new URI(pathPrefix), conf)
       } else {
-        sc.setCheckpointDir(pathPrefix + "checkpoint")
+        // To avoid strange exception, set the specific defaultFS for Spark
+        conf.set("fs.defaultFS", pathPrefix + commoncrawlPath)
+        fs = FileSystem.get(conf)
       }
 
-      val conf = new Configuration()
-      val fs: FileSystem = FileSystem.get(conf)
       val crawlFiles = mutable.MutableList[String]()
       ClassifierStore.hadoopConf = conf
 
-      //the second boolean parameter here sets the recursion to true
-      val fileStatusListIterator: RemoteIterator[LocatedFileStatus] = fs.listFiles(new Path(pathPrefix), false)
+      // Find the CommonCrawl files
+      // The second boolean parameter here sets the recursion to true
+      val fileStatusListIterator: RemoteIterator[LocatedFileStatus] = fs.listFiles(new Path(pathPrefix + commoncrawlPath), false)
       while (fileStatusListIterator.hasNext) {
         val fileStatus: LocatedFileStatus = fileStatusListIterator.next
         if (fileStatus.getPath.getName.startsWith("CC")) {
@@ -59,14 +101,18 @@ object SparkApp {
         }
       }
 
+      // newAPIHadoopFile(String path, scala.reflect.ClassTag<K> km, scala.reflect.ClassTag<V> vm, scala.reflect.ClassTag<F> fm)
+      // Get an RDD for a Hadoop file with an arbitrary new API InputFormat.
       val ent = crawlFiles.map(sc.newAPIHadoopFile(_, classOf[WARCFileInputFormat[Text, ArchiveReader]], classOf[Text], classOf[ArchiveReader]))
         .map(extractEntities)
-        .toSeq
+        .toSeq // Sequential instead of parallel
 
-      println("Group/sort")
+      println("\n\u001B[32m" + "---Group / Sort---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
+      // Union -> unique elements from sc and ent
       val res = sc.union(ent)
-        .groupBy(_._1)
+        .groupBy(_._1) // groupby first element
         /*.flatMap {
           x =>
             val sitecount = mutable.HashMap[String, Long]()
@@ -82,36 +128,41 @@ object SparkApp {
         }*/
         .flatMap {
         case (k, x) =>
-          x.map(_._2).groupBy(identity).mapValues(_.size).map{c => ((c._1, k), c._2)}
+          x.map(_._2).groupBy(identity).mapValues(_.size).map { c => ((c._1, k), c._2) }
       }
-        .sortBy(_._2, ascending=false)
+        .sortBy(_._2, ascending = false)
 
-      println("Initial processing done")
+      println("\n\u001B[32m" + "---Initial Processing Done---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
       res
-        .saveAsTextFile(pathPrefix + "count-per-site")
+        .saveAsTextFile(pathPrefix + "count-per-site" + timestamp.toString)
 
-      print("Site count saved")
+      println("\n\u001B[32m" + "---Site Count Saved---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
       val si = res.keys.map(_._1).distinct().map(x => (x.hashCode, x))
       val ei = res.keys.map(_._2).distinct().map(x => (x.hashCode, x))
 
-      println("Indexes created")
+      println("\n\u001B[32m" + "---Indexes Created---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
       //val sei = si.join(ei)
 
       //println("Lookup table joined")
 
       val ratings = res
-        .map{x =>
-        Rating(x._1._1.hashCode, x._1._2.hashCode, x._2)
-      }
+        .map { x =>
+          Rating(x._1._1.hashCode, x._1._2.hashCode, x._2)
+        }
 
-      println("Created ratings")
+      println("\n\u001B[32m" + "---Created Ratings---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
       val model = ALS.train(ratings, 10, 20, 1)
 
-      println("Trained model")
+      println("\n\u001B[32m" + "---Trained Model---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
       val usersProducts = ratings.map { case Rating(user, product, rate) =>
         (user, product)
@@ -127,7 +178,9 @@ object SparkApp {
         val err = (r1 - r2)
         err * err
       }.mean()
-      println("Mean Squared Error = " + MSE)
+
+      println("\n\u001B[32m" + "---Mean Squared Error = " + MSE + "---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
       //model.save(sc, "hdfs:///user/hdfs/model-train")
 
@@ -136,18 +189,18 @@ object SparkApp {
           (site, (entity, count))
 
       }
-      .join(si)
-      .map {
-        case (sidx, ((eidx, count), site)) =>
-          (eidx, (site, count))
-      }
-      .join(ei)
-      .map {
-        case (eidx, ((site, count), (entlbl, enttype))) =>
-          ((entlbl, enttype), site, count)
-      }
-      .sortBy(_._3)
-      .saveAsTextFile(pathPrefix + "predictions")
+        .join(si)
+        .map {
+          case (sidx, ((eidx, count), site)) =>
+            (eidx, (site, count))
+        }
+        .join(ei)
+        .map {
+          case (eidx, ((site, count), (entlbl, enttype))) =>
+            ((entlbl, enttype), site, count)
+        }
+        .sortBy(_._3)
+        .saveAsTextFile(pathPrefix + "predictions" + timestamp.toString)
       /*.flatMap(_._2)
       .map{ case (k, t) =>
       (k + ":" +t , 1)
@@ -177,66 +230,73 @@ object SparkApp {
         .sortBy(_._2, ascending=false)
         .saveAsTextFile("hdfs:///user/hdfs/count-global")*/
 
+      println("\n\u001B[32m" + "---Done---" + "\u001B[0m\n")
+      Thread.sleep(sleepTime)
 
-      println("done")
-    } catch {
+      // Stop app automatically when finished
+      sc.stop()
+    catch {
       case ex: Exception => ex.printStackTrace()
     }
   }
 
-  def extractEntities(rdd:RDD[(Text, ArchiveReader)]) = {
-    val extract = rdd.flatMap{
+  def extractEntities(rdd: RDD[(Text, ArchiveReader)]) = {
+    val extract = rdd.flatMap {
       case (text, reader) => reader.iterator().toSeq
     }
       .map(CARProducer.build)
       .filter(ar => {
-      ar.header("WARC-Type").equals("response")
-    })
+        ar.header("WARC-Type").equals("response")
+      })
       .map(ar => {
-      var bodyText: String = null
-      try {
-        val resp = ApacheHTTPFactory.createResponse(ar.body)
+        var bodyText: String = null
+        try {
+          val resp = ApacheHTTPFactory.createResponse(ar.body)
 
-        if (resp.containsHeader("Content-Type") && resp.getFirstHeader("Content-Type").getValue.startsWith("text/html")) {
-          try {
-            val bi = new BufferedInputStream(resp.getEntity.getContent)
-            bodyText = ArticleExtractor.getInstance().getText(new InputStreamReader(bi))
-          } catch {
-            case ex: Exception =>
+          if (resp.containsHeader("Content-Type") && resp.getFirstHeader("Content-Type").getValue.startsWith("text/html")) {
+            try {
+              val bi = new BufferedInputStream(resp.getEntity.getContent)
+              bodyText = ArticleExtractor.getInstance().getText(new InputStreamReader(bi))
+            } catch {
+              case ex: Exception =>
+            }
           }
+        } catch {
+          case ex: Exception =>
+
         }
-      } catch {
-        case ex:Exception =>
 
+        (ar.header("WARC-Target-URI").toString, bodyText)
       }
-
-      (ar.header("WARC-Target-URI").toString, bodyText)
-    }
       )
       .filter {
-      case (uri, bodyText) => bodyText != null
-      case _ => false
-    }
+        case (uri, bodyText) => bodyText != null
+        case _ => false
+      }
+      //    Repartition:
+      //    Reshuffle the data in the RDD randomly to create either more or fewer partitions and balance it across them.
+      //    This always shuffles all data over the network.
       .repartition(numCores)
-      .flatMap{ case (uri:String, bodyText:String) => {
+      .flatMap { case (uri: String, bodyText: String) => {
 
-      assert(bodyText != null)
-      assert(ClassifierStore.get_TL() != null)
+        assert(bodyText != null)
+        assert(ClassifierStore.get_TL() != null)
 
-      val classifiers = ClassifierStore.get_TL().classify(bodyText)
-      val entities = mutable.MutableList[((String, String), String)]()
+        val classifiers = ClassifierStore.get_TL().classify(bodyText)
+        val entities = mutable.MutableList[((String, String), String)]()
 
-      for (sentence <- classifiers) {
-        for (word <- sentence) {
-          if (word.get(classOf[CoreAnnotations.AnswerAnnotation]) != "O") {
-            entities += (((word.word(), word.get(classOf[CoreAnnotations.AnswerAnnotation])), new URI(uri).getHost))
+        for (sentence <- classifiers) {
+          for (word <- sentence) {
+            if (word.get(classOf[CoreAnnotations.AnswerAnnotation]) != "O") {
+              entities += (((word.word(), word.get(classOf[CoreAnnotations.AnswerAnnotation])), new URI(uri).getHost))
+            }
           }
         }
+
+        entities
+
       }
-
-      entities
-
-    }}
+      }
 
     extract.checkpoint()
     extract
