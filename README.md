@@ -83,8 +83,8 @@ Have a look at the files in the `$SPARK_HOME/conf` directory. Your `spark-defaul
     spark.eventLog.dir              hdfs://spark-master:9000/user/hdfs/History
     spark.history.fs.logDirectory   hdfs://spark-master:9000/user/hdfs/History
     spark.local.dir                 /mnt/ssd1/tmp,/mnt/ssd2/tmp
-    spark.driver.memory             14g
-    spark.driver.cores              2
+    spark.driver.memory             28g
+    spark.driver.cores              8
     spark.executor.memory           28g
 
 More information can be found at http://spark.apache.org/docs/latest/configuration.html 
