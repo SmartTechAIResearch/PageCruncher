@@ -5,12 +5,8 @@ import org.archive.io.ArchiveRecord
 
 import scala.collection.JavaConversions._
 
-/**
- * Created by wannes on 7/7/15.
- */
-
 object CARProducer {
-  def build(ar:ArchiveRecord):ContainedArchiveRecord = {
+  def build(ar: ArchiveRecord): ContainedArchiveRecord = {
     val os = new StringOutputStream()
     ar.dump(os)
     val str = os.toString
@@ -18,6 +14,6 @@ object CARProducer {
   }
 }
 
-case class ContainedArchiveRecord(header:Map[String, AnyRef], body:String) {
+case class ContainedArchiveRecord(header: Map[String, AnyRef], body: String) {
 
 }

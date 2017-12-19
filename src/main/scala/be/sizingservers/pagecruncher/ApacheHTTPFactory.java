@@ -1,8 +1,6 @@
-package be.sizingservers.pagecruncher; /**
- * Created by wannes on 7/3/15.
- */
+package be.sizingservers.pagecruncher;
+
 import org.apache.http.*;
-import org.apache.http.entity.BasicHttpEntity;
 import org.apache.http.impl.DefaultHttpRequestFactory;
 import org.apache.http.impl.DefaultHttpResponseFactory;
 import org.apache.http.impl.entity.EntityDeserializer;

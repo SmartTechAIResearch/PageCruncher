@@ -8,13 +8,9 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.log4j.Logger;
 
-import java.io.File;
-import java.util.zip.GZIPInputStream;
 import java.net.URI;
+import java.util.zip.GZIPInputStream;
 
-/**
- * Created by wannes on 7/7/15.
- */
 public class ClassifierStore {
 
     public static String path = SparkApp.pathPrefix() + SparkApp.classifiersPath() + "english.muc.7class.distsim.crf.ser.gz";

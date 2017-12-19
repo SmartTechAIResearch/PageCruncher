@@ -19,15 +19,15 @@ import org.archive.io.ArchiveReader;
  */
 public class WARCFileInputFormat<T, A> extends FileInputFormat<Text, ArchiveReader> {
 
-	@Override
-	public RecordReader<Text, ArchiveReader> createRecordReader(InputSplit split, TaskAttemptContext context)
-			throws IOException, InterruptedException {
-		return new WARCFileRecordReader<>();
-	}
-	
-	@Override
-	protected boolean isSplitable(JobContext context, Path filename) {
-		// As these are compressed files, they cannot be (sanely) split
-		return false;
-	}
+    @Override
+    public RecordReader<Text, ArchiveReader> createRecordReader(InputSplit split, TaskAttemptContext context)
+            throws IOException, InterruptedException {
+        return new WARCFileRecordReader<>();
+    }
+
+    @Override
+    protected boolean isSplitable(JobContext context, Path filename) {
+        // As these are compressed files, they cannot be (sanely) split
+        return false;
+    }
 }

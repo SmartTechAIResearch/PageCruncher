@@ -2,7 +2,6 @@ package be.sizingservers.pagecruncher
 
 import java.io.{BufferedInputStream, InputStreamReader}
 import java.net.URI
-import java.util.Calendar
 
 import de.l3s.boilerpipe.extractors.ArticleExtractor
 import edu.stanford.nlp.ling.CoreAnnotations
@@ -14,13 +13,10 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkConf, SparkContext}
 import org.archive.io.ArchiveReader
 import org.commoncrawl.warc.WARCFileInputFormat
-
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
-/**
-  * Created by wannes on 7/6/15.
-  */
+
 case class Entity(label: String, etype: String)
 
 object SparkApp {
@@ -46,7 +42,7 @@ object SparkApp {
 
   // Main program
   def main(args: Array[String]): Unit = {
-    try
+    try {
       // Processing arguments
       if (args.length >= 1) pathPrefix = args(0) + "/"
       if (args.length >= 2) numCores = Integer.parseInt(args(1))
@@ -235,7 +231,7 @@ object SparkApp {
 
       // Stop app automatically when finished
       sc.stop()
-    catch {
+    } catch {
       case ex: Exception => ex.printStackTrace()
     }
   }

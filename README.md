@@ -67,9 +67,9 @@ Depending on where Spark is installed and so on, starting the app could look lik
 (Standalone cluster manager):
 
     # $SPARK_HOME is an environment variable, this can be added in your ~/.bashrc file (e.g. export SPARK_HOME=/usr/local/spark)
-    $SPARK_HOME/bin/spark-submit --class be.sizingservers.pagecruncher.SparkApp --master local[48] --deploy-mode client /tmp/target/scala-2.11/PageCruncher-assembly-1.1.1.jar file:///media 48 CommonCrawl/ Classifiers/ Checkpoint/
+    $SPARK_HOME/bin/spark-submit --class be.sizingservers.pagecruncher.SparkApp --master local[48] --deploy-mode client /tmp/target/scala-2.11/PageCruncher-assembly-1.2.1.jar file:///media 48 CommonCrawl/ Classifiers/ Checkpoint/
     
-    $SPARK_HOME/bin/spark-submit --class be.sizingservers.pagecruncher.SparkApp --master spark://spark-master:6066 --deploy-mode cluster --supervise hdfs://spark-master:9000/user/hdfs/PageCruncher-assembly-1.1.1.jar hdfs://spark-master:9000/ 56
+    $SPARK_HOME/bin/spark-submit --class be.sizingservers.pagecruncher.SparkApp --master spark://spark-master:6066 --deploy-mode cluster --supervise hdfs://spark-master:9000/user/hdfs/PageCruncher-assembly-1.2.1.jar hdfs://spark-master:9000/ 56
     
 
 ## Performance
